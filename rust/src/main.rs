@@ -45,9 +45,32 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let blockchain_info = rpc.get_blockchain_info()?;
     println!("Blockchain Info: {:?}", blockchain_info);
 
-    // Create/Load the wallets, named 'Miner' and 'Trader'. Have logic to optionally create/load them if they do not exist or not loaded already.
+    // Create/Load the wallets, named 'Miner' and 'Trader'.
+    //Create wallet "Miner" and load it if it exists
+    match rpc.create_wallet ("Miner", None, None, None, None, None, None ) {
+        Ok(_) => (),
+        Err(_) => {
+            rpc.load_wallet("Miner")?;
+        }
+    }
+
+     match rpc.create_wallet ("Trader", None, None, None, None, None, None) {
+        Ok(_) => (),
+        Err(_) => {
+            rpc.load_wallet("Trader")?;
+        }
+    }
 
     // Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
+    //Generate an address from the Miner wallet that will receive the  block rewards
+    let miner_address = rpc.get_new_address (Some("Mining reward"), None)?;
+    let address = miner_address.assume_checked();
+
+    // 101 blocks need to be mined to this address
+    rpc.generate_to_address(101, &address)?;
+
+    //check balance
+    let balance = rpc.get_balance(None)?;
 
     // Load Trader wallet and generate a new address
 
