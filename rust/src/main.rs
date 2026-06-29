@@ -44,7 +44,15 @@ fn main() -> bitcoincore_rpc::Result<()> {
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
+    let miner_client = Client::new(
+        format!("{}/wallet/Miner", RPC_URL).as_str(),
+        Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+    )?;
 
+    let trader_client = Client::new(
+        format!("{}/wallet/Trader", RPC_URL).as_str(),
+        Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
+    )?;
 
     // Get blockchain info
     let blockchain_info = rpc.get_blockchain_info()?;
@@ -69,7 +77,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
     //Generate an address from the Miner wallet that will receive the  block rewards
-    let miner_address = rpc.get_new_address (Some("Mining reward"), None)?;
+    let miner_address = miner_client.get_new_address (Some("Mining reward"), None)?;
     let address = miner_address.assume_checked();
 
     //101 blocks need to be mined to this address
@@ -77,10 +85,10 @@ fn main() -> bitcoincore_rpc::Result<()> {
     rpc.generate_to_address(101, &address)?;
 
     //check balance
-    let balance = rpc.get_balance(None, None)?;
+    let balance = miner_client.get_balance(None, None)?;
 
     // Load Trader wallet and generate a new address
-    let trader_address = rpc.get_new_address(Some("Received"), None)?;
+    let trader_address = trader_client.get_new_address(Some("Received"), None)?;
     let trader_addr_checked = trader_address.assume_checked();
     let trader_addr_str = trader_addr_checked.to_string();
 
