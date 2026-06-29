@@ -119,7 +119,32 @@ fn main() -> bitcoincore_rpc::Result<()> {
     
     //get the amount
     let input_amount = prev_output.value.to_btc();
+
+    //extract trader output and change output
+    let mut trader_output_amount = 0.0;
+    let mut miner_change_address = String::new();
+    let mut miner_change_amount = 0.0;
+
+    //loop through all the outputs
+    for output in &raw_tx.output {
+        //get the address from the script_pubkey
+        if let Ok(addr) = Address::from_script(&output.script_pubkey, Network::Regtest){
+            let addr_str = addr.to_string();
+
+            //check if this output goes to trader
+            if addr_str == trader_addr_str{
+                trader_output_amount = output.value.to_btc();
+            }
+            else {
+                miner_change_address = addr_str;
+                miner_change_amount = output.value.to_btc();
+            }
+        }
+    }
     
+    //calculate transaction fee
+    let total_output = trader_output_amount + miner_change_amount;
+    let fee = input_amount - total_output;
 
     // Write the data to ../out.txt in the specified format given in readme.md
     let mut file = File::create("../out.txt")?;
