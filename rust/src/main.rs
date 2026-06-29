@@ -6,6 +6,8 @@ use serde::Deserialize;
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
+use bitcoincore_rpc::bitcoin::Txid;
+use std::str::FromStr;
 
 // Node access params
 const RPC_URL: &str = "http://127.0.0.1:18443"; // Default regtest RPC port
@@ -72,11 +74,12 @@ fn main() -> bitcoincore_rpc::Result<()> {
     rpc.generate_to_address(101, &address)?;
 
     //check balance
-    let balance = rpc.get_balance(None)?;
+    let balance = rpc.get_balance(None, None)?;
 
     // Load Trader wallet and generate a new address
     let trader_address = rpc.get_new_address(Some("Received"), None)?;
-    let trader_addr_str = trader_address.to_string();
+    let trader_addr_checked = trader_address.assume_checked();
+    let trader_addr_str = trader_addr_checked.to_string();
 
     // Send 20 BTC from Miner to Trader
     let txid = send(&rpc, &trader_addr_str)?;
@@ -88,10 +91,10 @@ fn main() -> bitcoincore_rpc::Result<()> {
     rpc.generate_to_address(1, &address)?;
 
     //Get transaction details and block hash
-
-    let tx_info = rpc.get_transaction(&txid, None)?;
-    let block_height = tx_info.block_height.unwrap_or(0);
-    let block_hash = rpc.get_block_hash(block_height)?;
+    let txid_parsed = Txid::from_str(&txid).expect("Invalid txid format");
+    let tx_info = rpc.get_transaction(&txid_parsed, None)?;
+    let block_height = tx_info.info.blockheight.unwrap_or(0);
+    let block_hash = rpc.get_block_hash(block_height.into())?;
     
     // Extract all required transaction details
 
