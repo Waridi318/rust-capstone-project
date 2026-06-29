@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::Write;
 use bitcoincore_rpc::bitcoin::Txid;
 use std::str::FromStr;
+use bitcoincore_rpc::bitcoin::{Address, Network};
 
 // Node access params
 const RPC_URL: &str = "http://127.0.0.1:18443"; // Default regtest RPC port
@@ -95,8 +96,30 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let tx_info = rpc.get_transaction(&txid_parsed, None)?;
     let block_height = tx_info.info.blockheight.unwrap_or(0);
     let block_hash = rpc.get_block_hash(block_height.into())?;
+
+    //Get the raw transaction to analyze inouts and outputs
+    let raw_tx = rpc.get_raw_transaction(&txid_parsed, None)?;
+
+    //Get input address and amount from the coinbase transaction
+    //this is the vector of inputs
+    let first_input = &raw_tx.input[0];
+    //previous transaction (the coinbase tx)
+    let prev_txid = first_input.previous_output.txid;
+    let prev_vout = first_input.previous_output.vout as usize;
     
-    // Extract all required transaction details
+    let prev_tx = rpc.get_raw_transaction(&prev_txid, None)?;
+    
+    //extract the input address and amount from orevious transaction output
+    //this is the vector of outputs
+    let prev_output = &prev_tx.output[prev_vout];
+    //get the address from the script_pubkey
+    let input_address = Address::from_script(&prev_output.script_pubkey, Network::Regtest)
+        .expect("No address found in input")
+        .to_string();
+    
+    //get the amount
+    let input_amount = prev_output.value.to_btc();
+    
 
     // Write the data to ../out.txt in the specified format given in readme.md
     let mut file = File::create("../out.txt")?;
