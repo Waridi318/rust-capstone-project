@@ -44,6 +44,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
+    //create wallet specific clients
     let miner_client = Client::new(
         format!("{}/wallet/Miner", RPC_URL).as_str(),
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
