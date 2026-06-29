@@ -44,6 +44,8 @@ fn main() -> bitcoincore_rpc::Result<()> {
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
+
+
     // Get blockchain info
     let blockchain_info = rpc.get_blockchain_info()?;
     println!("Blockchain Info: {:?}", blockchain_info);
@@ -148,8 +150,39 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Write the data to ../out.txt in the specified format given in readme.md
     let mut file = File::create("../out.txt")?;
+    //Transaction ID
     writeln!(file, "{}", txid)?;
+
+    //Miner's input address
+    writeln!(file, "{}", input_address);
+    
+    //miner's input amount - if it's a whole number, print without decimals
+    if input_amount.fract() == 0.0 {
+        writeln!(file, "{:.0}", input_amount)?;
+    }
+    else{
+        writeln!(file, "{:.8}", input_amount)?;
+    }
+
+    //trader's output amount
+    if trader_output_amount.fract() == 0.0 {
+        writeln!(file, "{:.0}", trader_output_amount)?;
+    } else {
+        writeln!(file, "{:.8}", trader_output_amount)?;
+    }
+
+    //Miner's change address
+    writeln!(file, "{}", miner_change_address)?;
+    
+    //miner's change amount
+    writeln!(file, "{:.7}", miner_change_amount)?;
+    
+    //transaction fees - negative sign
+    writeln!(file, "{:.5e}", -fee)?;
+
+    //Block height
     writeln!(file, "{}", block_height)?;
+    //Block hash
     writeln!(file, "{}", block_hash)?;
     Ok(())
 }
