@@ -37,6 +37,26 @@ fn send(rpc: &Client, addr: &str) -> bitcoincore_rpc::Result<String> {
     Ok(send_result.txid)
 }
 
+//helper function to ensure that a Bitcoin Core wallet with the given name is loaded and ready for use.
+fn ensure_wallet_loaded(rpc: &Client, wallet_name: &str) -> Result<(), bitcoincore_rpc::Error> {
+    let loaded_wallets = rpc.list_wallets()?;
+    
+    //Ok - If wallet already loaded
+    if loaded_wallets.contains(&wallet_name.to_string()) {
+        return Ok(());
+    }
+    
+    //Load the wallet if it exists
+    if let Ok(_) = rpc.load_wallet(wallet_name) {
+        return Ok(());
+    }
+    
+    //If loading fails, create a new wallet
+    rpc.create_wallet(wallet_name, None, None, None, None)?;    
+
+    Ok(())
+}
+
 fn main() -> bitcoincore_rpc::Result<()> {
     // Connect to Bitcoin Core RPC
     let rpc = Client::new(
@@ -44,37 +64,28 @@ fn main() -> bitcoincore_rpc::Result<()> {
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
+    //ensure both wallets are loaded before interacting with them
+    ensure_wallet_loaded(&rpc, "Miner")?;
+    ensure_wallet_loaded(&rpc, "Trader")?;
+
+    //debug test to see if wallets loaded correctly
+    let loaded = rpc.list_wallets()?;
+    println!("Loaded wallets: {:?}", loaded);
+
     //create wallet specific clients
     let miner_client = Client::new(
         format!("{}/wallet/Miner", RPC_URL).as_str(),
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
     )?;
 
-    let trader_client = Client::new(
-        format!("{}/wallet/Trader", RPC_URL).as_str(),
+      let trader_client = Client::new(
+       format!("{}/wallet/Trader", RPC_URL).as_str(),
         Auth::UserPass(RPC_USER.to_owned(), RPC_PASS.to_owned()),
-    )?;
-
+   )?;
+  
     // Get blockchain info
     let blockchain_info = rpc.get_blockchain_info()?;
     println!("Blockchain Info: {:?}", blockchain_info);
-
-    // Create/Load the wallets, named 'Miner' and 'Trader'.
-    //Create wallet "Miner" and load it if it exists
-    match rpc.create_wallet ("Miner", None, None, None, None) {
-        Ok(_) => (),
-        Err(_) => {
-            rpc.load_wallet("Miner")?;
-        }
-    }
-
-    //Create Wallet "Trader" and load it if ot exists
-    match rpc.create_wallet ("Trader", None, None, None, None) {
-        Ok(_) => (),
-        Err(_) => {
-            rpc.load_wallet("Trader")?;
-        }
-    }
 
     // Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
     //Generate an address from the Miner wallet that will receive the  block rewards
@@ -83,7 +94,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     //101 blocks need to be mined to this address
     //1 block for reward + 100 blocks for confirmations
-    rpc.generate_to_address(101, &address)?;
+    miner_client.generate_to_address(101, &address)?;
 
     //check balance
     let balance = miner_client.get_balance(None, None)?;
@@ -94,17 +105,17 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let trader_addr_str = trader_addr_checked.to_string();
 
     // Send 20 BTC from Miner to Trader
-    let txid = send(&rpc, &trader_addr_str)?;
+    let txid = send(&miner_client, &trader_addr_str)?;
 
     // Check transaction in mempool
     let mempool = rpc.get_raw_mempool()?;
 
     // Mine 1 block to confirm the transaction
-    rpc.generate_to_address(1, &address)?;
+    miner_client.generate_to_address(1, &address)?;
 
     //Get transaction details and block hash
     let txid_parsed = Txid::from_str(&txid).expect("Invalid txid format");
-    let tx_info = rpc.get_transaction(&txid_parsed, None)?;
+    let tx_info = miner_client.get_transaction(&txid_parsed, None)?;
     let block_height = tx_info.info.blockheight.unwrap_or(0);
     let block_hash = rpc.get_block_hash(block_height.into())?;
 
